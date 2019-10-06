@@ -4,10 +4,7 @@ set -e
 git config --global user.name "Travis CI"
 git config --global user.email "noreply+travis@fossasia.org"
 
-export DEPLOY_BRANCH=${DEPLOY_BRANCH:-development}
-export PUBLISH_BRANCH=${PUBLISH_BRANCH:-master}
-
-if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_REPO_SLUG" != "fossasia/open-event-attendee-android" ] || ! [ "$TRAVIS_BRANCH" == "$DEPLOY_BRANCH" -o "$TRAVIS_BRANCH" == "$PUBLISH_BRANCH" ]; then
+if ! [[ ( $TRAVIS_PULL_REQUEST =~ ^(false)$ && $TRAVIS_REPO_SLUG =~ ^(fossasia/open-event-attendee-android)$ && $TRAVIS_BRANCH =~ ^(development|master)$ ) || ( $TRAVIS_BRANCH =~ ^(master)$ && $TRAVIS_PULL_REQUEST_BRANCH =~ ^(development)$ && $TRAVIS_REPO_SLUG =~ ^('fossasia/open-event-attendee-android')$ && $TRAVIS_PULL_REQUEST_SLUG =~ ^('fossasia/open-event-attendee-android')$ ) ]]; then
 	echo "We upload apk only for changes in development or master, and not PRs. So, let's skip this shall we ? :)"
 	exit 0
 fi
@@ -44,6 +41,14 @@ for file in app*; do
 
     fi
 done
+
+if [[ $TRAVIS_BRANCH =~ ^(master)$ && $TRAVIS_PULL_REQUEST_BRANCH =~ ^(development)$ && $TRAVIS_REPO_SLUG =~ ^('fossasia/open-event-attendee-android')$ && $TRAVIS_PULL_REQUEST_SLUG =~ ^('fossasia/open-event-attendee-android')$ ]];then
+    echo "cool, so you're trying to release a new version. Lets check things out first, hold on..."
+    cd ..
+    gem install fastlane
+    fastlane supply --aab ./apk/eventyay-attendee-master-app-playStore-release.aab --skip_upload_apk true --track alpha --json_key ./scripts/fastlane.json --package_name $PACKAGE_NAME --validate_only true
+    exit 0
+fi
 
 # Create a new branch that will contains only latest apk
 git checkout --orphan temporary
